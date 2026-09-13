@@ -12,6 +12,7 @@ import {
   createInstallmentAction,
   deleteInstallmentAction,
   reseedDatabaseAction,
+  clearAllDataAction,
 } from '@/actions/settings-actions';
 import {
   createAdminUserAction,
@@ -124,6 +125,10 @@ export function SettingsView({
   // Reseed dialog
   const [isReseedDialogOpen, setIsReseedDialogOpen] = useState(false);
   const [isReseeding, setIsReseeding] = useState(false);
+
+  // Clear all data dialog
+  const [isClearDataDialogOpen, setIsClearDataDialogOpen] = useState(false);
+  const [isClearingData, setIsClearingData] = useState(false);
 
   const handleSaveChitSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,11 +333,25 @@ export function SettingsView({
     setIsReseeding(false);
 
     if (res.success) {
-      toast.success('Database re-seeded with initial chit fund data!');
+      toast.success('Database reset with clean initial chit fund parameters!');
       setIsReseedDialogOpen(false);
       window.location.reload();
     } else {
       toast.error(res.error || 'Failed to reset database');
+    }
+  };
+
+  const handleClearAllDataConfirm = async () => {
+    setIsClearingData(true);
+    const res = await clearAllDataAction();
+    setIsClearingData(false);
+
+    if (res.success) {
+      toast.success(res.message || 'All records cleared successfully! Ready for your new data.');
+      setIsClearDataDialogOpen(false);
+      window.location.reload();
+    } else {
+      toast.error(res.error || 'Failed to clear records');
     }
   };
 
@@ -832,13 +851,22 @@ export function SettingsView({
             </p>
           </div>
 
-          <button
-            onClick={() => setIsReseedDialogOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold rounded-xl text-xs hover:bg-rose-100 transition-colors self-start sm:self-auto"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Reset & Reseed Baseline</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setIsClearDataDialogOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-bold rounded-xl text-xs hover:bg-amber-100 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear All Data (Clean Slate)</span>
+            </button>
+            <button
+              onClick={() => setIsReseedDialogOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold rounded-xl text-xs hover:bg-rose-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Reset & Reseed Baseline</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1182,6 +1210,18 @@ export function SettingsView({
         confirmText="Delete Admin"
         isDestructive={true}
         isLoading={isDeletingAdmin}
+      />
+
+      {/* Clear All Data Confirmation */}
+      <ConfirmDialog
+        isOpen={isClearDataDialogOpen}
+        onClose={() => setIsClearDataDialogOpen(false)}
+        onConfirm={handleClearAllDataConfirm}
+        title="Clear All Members & Transactions?"
+        message="Are you sure you want to wipe all members, payments, and auctions? This will give you a completely clean chit fund ledger so you can add your real members and transactions. Your admin login account will be preserved."
+        confirmText="Clear All Data"
+        isDestructive={true}
+        isLoading={isClearingData}
       />
     </div>
   );

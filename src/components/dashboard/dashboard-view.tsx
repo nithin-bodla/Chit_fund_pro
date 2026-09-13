@@ -20,6 +20,7 @@ import {
   ArrowUpRight,
   Gavel,
   FileText,
+  UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -248,7 +249,25 @@ export function DashboardView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {metrics.member_statuses.map((status) => (
+              {metrics.member_statuses.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="font-semibold text-slate-600 dark:text-slate-300">No members enrolled yet</p>
+                    <p className="text-xs text-slate-400 mt-1">Enroll your chit fund members to begin tracking collections and dues.</p>
+                    {isAdmin && (
+                      <Link
+                        href="/members"
+                        className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Enroll First Member</span>
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                metrics.member_statuses.map((status) => (
                 <tr key={status.member_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-4 pl-2 font-mono font-medium text-slate-400 text-xs">
                     {status.member_number}
@@ -293,14 +312,29 @@ export function DashboardView({
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
 
         {/* Mobile Cards View */}
         <div className="md:hidden space-y-3">
-          {metrics.member_statuses.map((status) => (
+          {metrics.member_statuses.length === 0 ? (
+            <div className="py-10 text-center text-slate-400">
+              <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">No members enrolled yet</p>
+              {isAdmin && (
+                <Link
+                  href="/members"
+                  className="inline-flex items-center gap-1.5 mt-3 px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Enroll First Member</span>
+                </Link>
+              )}
+            </div>
+          ) : (
+            metrics.member_statuses.map((status) => (
             <div
               key={status.member_id}
               className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-3"
@@ -356,7 +390,7 @@ export function DashboardView({
                 )}
               </div>
             </div>
-          ))}
+          )))}
         </div>
       </div>
 

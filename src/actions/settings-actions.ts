@@ -9,6 +9,7 @@ import {
   deleteInstallment,
   getDbHealth,
   seedNeonDatabase,
+  clearAllBusinessData,
 } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
@@ -168,8 +169,25 @@ export async function reseedDatabaseAction() {
     revalidatePath('/auction');
     revalidatePath('/reports');
     revalidatePath('/settings');
-    return { success: true, message: 'Database reset and re-seeded with initial chit fund data' };
+    return { success: true, message: 'Database reset to clean initial chit fund settings' };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to re-seed database' };
+  }
+}
+
+export async function clearAllDataAction() {
+  await requireAdmin();
+  try {
+    await clearAllBusinessData();
+    revalidatePath('/');
+    revalidatePath('/members');
+    revalidatePath('/collection');
+    revalidatePath('/payments');
+    revalidatePath('/auction');
+    revalidatePath('/reports');
+    revalidatePath('/settings');
+    return { success: true, message: 'All demo and sample records cleared! Your chit fund is ready for new data.' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to clear data' };
   }
 }

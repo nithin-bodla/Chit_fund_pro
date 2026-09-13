@@ -71,15 +71,7 @@ class LocalStore {
       updated_at: now,
     }));
 
-    this.members = INITIAL_MEMBERS.map((m, index) => ({
-      id: `member-${index + 1}`,
-      chit_group_id: groupId,
-      ...m,
-      status: 'active' as const,
-      joined_date: '2026-09-01',
-      created_at: now,
-      updated_at: now,
-    }));
+    this.members = [];
 
     const adminUsername = getInitialAdminUsername();
     const adminHash = await getInitialAdminHash();
@@ -93,157 +85,18 @@ class LocalStore {
       },
     ];
 
-    // Seed realistic payments for Month 1 (September)
-    const m1 = this.installments[0];
-    const initialPayments: Payment[] = [
-      {
-        id: 'pay-1',
-        member_id: this.members[0].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-05',
-        payment_method: 'UPI',
-        reference_number: 'UPI/62534188/901',
-        status: 'Completed',
-        notes: 'Paid via GPay',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-2',
-        member_id: this.members[1].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-06',
-        payment_method: 'Cash',
-        reference_number: 'REC-001',
-        status: 'Completed',
-        notes: 'Cash in hand',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-3',
-        member_id: this.members[2].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 3000,
-        payment_date: '2026-09-08',
-        payment_method: 'UPI',
-        reference_number: 'UPI/78129033/442',
-        status: 'Completed',
-        notes: 'Partial payment; balance promised by next week',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-4',
-        member_id: this.members[3].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-07',
-        payment_method: 'Bank Transfer',
-        reference_number: 'NEFT-88992100',
-        status: 'Completed',
-        notes: 'Direct HDFC transfer',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-5',
-        member_id: this.members[4].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-08',
-        payment_method: 'UPI',
-        reference_number: 'UPI/99812400/123',
-        status: 'Completed',
-        notes: 'Paid via PhonePe',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-7',
-        member_id: this.members[6].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-09',
-        payment_method: 'Bank Transfer',
-        reference_number: 'IMPS-23490192',
-        status: 'Completed',
-        notes: 'ICICI Netbanking',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-8',
-        member_id: this.members[7].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-10',
-        payment_method: 'Cash',
-        reference_number: 'REC-002',
-        status: 'Completed',
-        notes: 'Cash payment on due date',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-9',
-        member_id: this.members[8].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-09',
-        payment_method: 'UPI',
-        reference_number: 'UPI/33441122/789',
-        status: 'Completed',
-        notes: 'Paytm UPI transfer',
-        created_at: now,
-        updated_at: now,
-      },
-      {
-        id: 'pay-10',
-        member_id: this.members[9].id,
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        amount: 5000,
-        payment_date: '2026-09-04',
-        payment_method: 'UPI',
-        reference_number: 'UPI/55667788/321',
-        status: 'Completed',
-        notes: 'Advance transfer',
-        created_at: now,
-        updated_at: now,
-      },
-    ];
-    this.payments = initialPayments;
-
-    // Seed Auction for Month 1 (September)
-    this.auctions = [
-      {
-        id: 'auction-1',
-        chit_group_id: groupId,
-        installment_id: m1.id,
-        auction_date: '2026-09-12',
-        chit_value: 50000,
-        winning_bid: 4000,
-        discount: 4000,
-        dividend_per_member: 400,
-        winner_member_id: this.members[3].id, // Priya Sundaram
-        notes: 'First auction completed successfully. Winner received ₹46,000.',
-        created_at: now,
-        updated_at: now,
-      },
-    ];
+    this.payments = [];
+    this.auctions = [];
 
     this.initialized = true;
+  }
+
+  clearAllData() {
+    this.members = [];
+    this.payments = [];
+    this.auctions = [];
+    const adminUsername = getInitialAdminUsername();
+    this.users = this.users.filter((u) => u.username === adminUsername);
   }
 }
 
@@ -414,19 +267,7 @@ export async function seedNeonDatabase(): Promise<void> {
   }
 
   // 3. Insert members
-  const memberMap: Record<number, string> = {};
-  for (const m of INITIAL_MEMBERS) {
-    const mRows = await sql`
-      INSERT INTO members (
-        chit_group_id, member_number, name, phone, email, address, notes
-      ) VALUES (
-        ${groupId}, ${m.member_number}, ${m.name}, ${m.phone}, ${m.email}, ${m.address}, ${m.notes}
-      ) RETURNING id, member_number;
-    `;
-    memberMap[m.member_number] = mRows[0].id;
-  }
-
-  // 4. Insert admin user
+  // 3. Insert admin user
   const adminUsername = getInitialAdminUsername();
   const adminHash = await getInitialAdminHash();
   await sql`
@@ -434,33 +275,23 @@ export async function seedNeonDatabase(): Promise<void> {
     VALUES (${adminUsername}, ${adminHash}, 'admin')
     ON CONFLICT (username) DO NOTHING;
   `;
+}
 
-  // 5. Insert sample payments for Month 1
-  const m1Id = installmentMap[1];
-  if (m1Id) {
-    await sql`
-      INSERT INTO payments (member_id, chit_group_id, installment_id, amount, payment_date, payment_method, reference_number, notes)
-      VALUES
-        (${memberMap[1]}, ${groupId}, ${m1Id}, 5000, '2026-09-05', 'UPI', 'UPI/62534188/901', 'Paid via GPay'),
-        (${memberMap[2]}, ${groupId}, ${m1Id}, 5000, '2026-09-06', 'Cash', 'REC-001', 'Cash in hand'),
-        (${memberMap[3]}, ${groupId}, ${m1Id}, 3000, '2026-09-08', 'UPI', 'UPI/78129033/442', 'Partial payment'),
-        (${memberMap[4]}, ${groupId}, ${m1Id}, 5000, '2026-09-07', 'Bank Transfer', 'NEFT-88992100', 'HDFC transfer'),
-        (${memberMap[5]}, ${groupId}, ${m1Id}, 5000, '2026-09-08', 'UPI', 'UPI/99812400/123', 'PhonePe'),
-        (${memberMap[7]}, ${groupId}, ${m1Id}, 5000, '2026-09-09', 'Bank Transfer', 'IMPS-23490192', 'ICICI'),
-        (${memberMap[8]}, ${groupId}, ${m1Id}, 5000, '2026-09-10', 'Cash', 'REC-002', 'Cash on due date'),
-        (${memberMap[9]}, ${groupId}, ${m1Id}, 5000, '2026-09-09', 'UPI', 'UPI/33441122/789', 'Paytm'),
-        (${memberMap[10]}, ${groupId}, ${m1Id}, 5000, '2026-09-04', 'UPI', 'UPI/55667788/321', 'Advance');
-    `;
-
-    // 6. Insert Month 1 auction
-    await sql`
-      INSERT INTO auctions (
-        chit_group_id, installment_id, auction_date, chit_value, winning_bid, discount, dividend_per_member, winner_member_id, notes
-      ) VALUES (
-        ${groupId}, ${m1Id}, '2026-09-12', 50000, 4000, 4000, 400, ${memberMap[4]}, 'First auction completed. Winner received ₹46,000.'
-      ) ON CONFLICT DO NOTHING;
-    `;
+// -------------------------------------------------------------
+// Clear All Business Data (Clean Slate)
+// -------------------------------------------------------------
+export async function clearAllBusinessData(): Promise<void> {
+  const sql = getSqlClient();
+  if (!sql) {
+    localStore.clearAllData();
+    return;
   }
+
+  await sql`DELETE FROM payments;`;
+  await sql`DELETE FROM auctions;`;
+  await sql`DELETE FROM members;`;
+  const adminUsername = getInitialAdminUsername();
+  await sql`DELETE FROM users WHERE username != ${adminUsername};`;
 }
 
 // -------------------------------------------------------------

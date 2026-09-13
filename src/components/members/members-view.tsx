@@ -215,7 +215,27 @@ export function MembersView({ members, isAdmin = false }: MembersViewProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-            {filteredMembers.map((m) => (
+            {filteredMembers.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="py-16 text-center text-slate-400">
+                  <Users className="w-10 h-10 mx-auto mb-2 opacity-30 text-slate-400" />
+                  <p className="font-semibold text-slate-600 dark:text-slate-300">No members enrolled yet</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    Enroll your chit fund members to track their installments, lifted statuses, and ledger payments.
+                  </p>
+                  {isAdmin && (
+                    <button
+                      onClick={openAddModal}
+                      className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>Add First Member</span>
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ) : (
+              filteredMembers.map((m) => (
               <tr
                 key={m.id}
                 className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
@@ -290,14 +310,29 @@ export function MembersView({ members, isAdmin = false }: MembersViewProps) {
                   </div>
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>
 
       {/* Mobile Members Cards View */}
       <div className="md:hidden space-y-3">
-        {filteredMembers.map((m) => (
+        {filteredMembers.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
+            <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="font-semibold text-slate-600 dark:text-slate-300">No members enrolled yet</p>
+            {isAdmin && (
+              <button
+                onClick={openAddModal}
+                className="inline-flex items-center gap-1.5 mt-3 px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add First Member</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredMembers.map((m) => (
           <div
             key={m.id}
             className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3"
@@ -355,7 +390,7 @@ export function MembersView({ members, isAdmin = false }: MembersViewProps) {
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* Add Member Modal */}

@@ -305,7 +305,14 @@ export function CollectionView({ months, allMonthMembers, members, isAdmin = fal
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {activeMembers.map((m) => (
+              {activeMembers.length === 0 ? (
+                <tr>
+                  <td colSpan={isAdmin ? 9 : 8} className="py-12 text-center text-slate-400">
+                    No members enrolled in this chit fund yet.
+                  </td>
+                </tr>
+              ) : (
+                activeMembers.map((m) => (
                 <tr key={m.member_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
                   <td className="py-3.5 pl-3 pr-2 font-mono font-bold text-slate-400 text-xs">
                     #{m.member_number}
@@ -365,7 +372,7 @@ export function CollectionView({ months, allMonthMembers, members, isAdmin = fal
                     </td>
                   )}
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
