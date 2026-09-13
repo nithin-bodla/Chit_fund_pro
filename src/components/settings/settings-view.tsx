@@ -64,17 +64,17 @@ export function SettingsView({
   const toast = useToast();
 
   // Chit group settings form
-  const [name, setName] = useState(group.name);
-  const [totalMembers, setTotalMembers] = useState(group.total_members.toString());
-  const [baseAmount, setBaseAmount] = useState(group.monthly_base_amount.toString());
+  const [name, setName] = useState(group?.name || 'Sri Lakshmi Chit Fund');
+  const [totalMembers, setTotalMembers] = useState((group?.total_members ?? 10).toString());
+  const [baseAmount, setBaseAmount] = useState((group?.monthly_base_amount ?? 50000).toString());
   const [regularAmount, setRegularAmount] = useState(
-    (group.regular_member_monthly_amount || 5000).toString()
+    (group?.regular_member_monthly_amount ?? 5000).toString()
   );
   const [afterLiftAmount, setAfterLiftAmount] = useState(
-    (group.after_lift_monthly_amount || 6000).toString()
+    (group?.after_lift_monthly_amount ?? 6000).toString()
   );
-  const [startDate, setStartDate] = useState(group.start_date);
-  const [endDate, setEndDate] = useState(group.end_date);
+  const [startDate, setStartDate] = useState(group?.start_date || '2025-01-01');
+  const [endDate, setEndDate] = useState(group?.end_date || '2025-10-01');
   const [isSavingGroup, setIsSavingGroup] = useState(false);
 
   // Profile credentials form
@@ -111,10 +111,10 @@ export function SettingsView({
 
   // Add new installment modal
   const [isAddInstModalOpen, setIsAddInstModalOpen] = useState(false);
-  const [newMonthNumber, setNewMonthNumber] = useState(installments.length + 1);
+  const [newMonthNumber, setNewMonthNumber] = useState((installments?.length || 0) + 1);
   const [newMonthName, setNewMonthName] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
-  const [newExpectedAmount, setNewExpectedAmount] = useState(group.monthly_base_amount.toString());
+  const [newExpectedAmount, setNewExpectedAmount] = useState((group?.monthly_base_amount ?? 50000).toString());
   const [newNotes, setNewNotes] = useState('');
   const [isAddingInst, setIsAddingInst] = useState(false);
 
@@ -545,7 +545,7 @@ export function SettingsView({
                     {inst.month_name}
                   </td>
                   <td className="py-3.5 px-3 text-xs font-mono text-slate-500">
-                    {inst.due_date}
+                    {String(inst.due_date || '').slice(0, 10)}
                   </td>
                   <td className="py-3.5 px-6 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm whitespace-nowrap">
                     {formatINR(inst.expected_amount)}
@@ -746,7 +746,7 @@ export function SettingsView({
                         </span>
                       </td>
                       <td suppressHydrationWarning className="py-3.5 px-3 text-xs font-mono text-slate-400 whitespace-nowrap">
-                        {u.created_at ? (u.created_at.length >= 10 ? u.created_at.slice(0, 10) : u.created_at) : '—'}
+                        {u.created_at ? String(u.created_at).slice(0, 10) : '—'}
                       </td>
                       <td className="py-3.5 pr-4 pl-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
@@ -806,15 +806,15 @@ export function SettingsView({
             <div className="flex items-center gap-2">
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  dbHealth.connected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                  dbHealth?.connected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                 }`}
               />
               <span className="font-bold text-sm text-slate-900 dark:text-white">
-                {dbHealth.isNeon ? 'Neon Cloud PostgreSQL' : 'Local Fallback Store'}
+                {dbHealth?.isNeon ? 'Neon Cloud PostgreSQL' : 'Local Fallback Store'}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Ping Latency: <strong className="text-emerald-600 font-mono">{dbHealth.latencyMs}ms</strong>
+              Ping Latency: <strong className="text-emerald-600 font-mono">{dbHealth?.latencyMs ?? 0}ms</strong>
             </p>
           </div>
 
@@ -825,19 +825,19 @@ export function SettingsView({
             <div className="grid grid-cols-4 gap-2 text-xs font-mono text-slate-700 dark:text-slate-300">
               <div>
                 <span className="text-slate-400 text-[10px] block font-sans">Groups</span>
-                <span className="font-bold">{dbHealth.tableCounts.chit_groups || 1}</span>
+                <span className="font-bold">{dbHealth?.tableCounts?.chit_groups || 1}</span>
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] block font-sans">Members</span>
-                <span className="font-bold">{dbHealth.tableCounts.members || 0}</span>
+                <span className="font-bold">{dbHealth?.tableCounts?.members || 0}</span>
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] block font-sans">Payments</span>
-                <span className="font-bold">{dbHealth.tableCounts.payments || 0}</span>
+                <span className="font-bold">{dbHealth?.tableCounts?.payments || 0}</span>
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] block font-sans">Installments</span>
-                <span className="font-bold">{installments.length}</span>
+                <span className="font-bold">{installments?.length || 0}</span>
               </div>
             </div>
           </div>

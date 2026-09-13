@@ -36,6 +36,27 @@ function isValidPostgresUrl(url?: string): boolean {
   return true;
 }
 
+export function toDateString(d: any, fallback = ''): string {
+  if (!d) return fallback;
+  if (typeof d === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
+    const parsed = new Date(d);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+    return d.slice(0, 10);
+  }
+  if (d instanceof Date && !isNaN(d.getTime())) {
+    return d.toISOString().slice(0, 10);
+  }
+  return fallback;
+}
+
+export function toIsoString(d: any): string {
+  if (!d) return new Date().toISOString();
+  if (typeof d === 'string') return d;
+  if (d instanceof Date && !isNaN(d.getTime())) return d.toISOString();
+  return new Date().toISOString();
+}
+
 export function getDbUrl(): string | undefined {
   // 1. Direct environment variable lookups (prioritize Chit_DB_ from active Neon store)
   const candidates = [
@@ -397,11 +418,11 @@ export async function getChitGroup(): Promise<ChitGroup> {
           monthly_base_amount: Number(r.monthly_base_amount),
           regular_member_monthly_amount: Number(r.regular_member_monthly_amount || 5000),
           after_lift_monthly_amount: Number(r.after_lift_monthly_amount || 6000),
-          start_date: String(r.start_date).slice(0, 10),
-          end_date: String(r.end_date).slice(0, 10),
+          start_date: toDateString(r.start_date, '2025-01-01'),
+          end_date: toDateString(r.end_date, '2025-10-01'),
           status: r.status,
-          created_at: r.created_at,
-          updated_at: r.updated_at,
+          created_at: toIsoString(r.created_at),
+          updated_at: toIsoString(r.updated_at),
         };
       }
     } catch (err) {
@@ -459,10 +480,10 @@ export async function getMembers(): Promise<Member[]> {
         email: r.email || '',
         address: r.address || '',
         status: r.status,
-        joined_date: String(r.joined_date).slice(0, 10),
+        joined_date: toDateString(r.joined_date, '2025-01-01'),
         notes: r.notes || '',
-        created_at: r.created_at,
-        updated_at: r.updated_at,
+        created_at: toIsoString(r.created_at),
+        updated_at: toIsoString(r.updated_at),
       }));
     } catch (err) {
       console.error('getMembers SQL error, falling back to localStore:', err);
@@ -491,10 +512,10 @@ export async function getMemberById(id: string): Promise<Member | null> {
           email: r.email || '',
           address: r.address || '',
           status: r.status,
-          joined_date: String(r.joined_date).slice(0, 10),
+          joined_date: toDateString(r.joined_date, '2025-01-01'),
           notes: r.notes || '',
-          created_at: r.created_at,
-          updated_at: r.updated_at,
+          created_at: toIsoString(r.created_at),
+          updated_at: toIsoString(r.updated_at),
         };
       }
       return null;
@@ -532,10 +553,10 @@ export async function createMember(data: Omit<Member, 'id' | 'created_at' | 'upd
         email: r.email || '',
         address: r.address || '',
         status: r.status,
-        joined_date: String(r.joined_date).slice(0, 10),
+        joined_date: toDateString(r.joined_date, '2025-01-01'),
         notes: r.notes || '',
-        created_at: r.created_at,
-        updated_at: r.updated_at,
+        created_at: toIsoString(r.created_at),
+        updated_at: toIsoString(r.updated_at),
       };
     } catch (err) {
       console.error('createMember SQL error, falling back to localStore:', err);
@@ -621,11 +642,11 @@ export async function getInstallments(): Promise<MonthlyInstallment[]> {
         chit_group_id: r.chit_group_id,
         month_number: Number(r.month_number),
         month_name: r.month_name,
-        due_date: String(r.due_date).slice(0, 10),
+        due_date: toDateString(r.due_date, '2025-01-10'),
         expected_amount: Number(r.expected_amount),
         notes: r.notes || '',
-        created_at: r.created_at,
-        updated_at: r.updated_at,
+        created_at: toIsoString(r.created_at),
+        updated_at: toIsoString(r.updated_at),
       }));
     } catch (err) {
       console.error('getInstallments SQL error, falling back to localStore:', err);
@@ -668,10 +689,10 @@ export async function updateInstallment(
       chit_group_id: current.chit_group_id,
       month_number: Number(current.month_number),
       month_name: updated.month_name,
-      due_date: String(updated.due_date).slice(0, 10),
+      due_date: toDateString(updated.due_date, '2025-01-10'),
       expected_amount: updated.expected_amount,
       notes: updated.notes || '',
-      created_at: current.created_at,
+      created_at: toIsoString(current.created_at),
       updated_at: new Date().toISOString(),
     };
   }
@@ -708,11 +729,11 @@ export async function createInstallment(
       chit_group_id: r.chit_group_id,
       month_number: Number(r.month_number),
       month_name: r.month_name,
-      due_date: String(r.due_date).slice(0, 10),
+      due_date: toDateString(r.due_date, '2025-01-10'),
       expected_amount: Number(r.expected_amount),
       notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
+      created_at: toIsoString(r.created_at),
+      updated_at: toIsoString(r.updated_at),
     };
   }
 
@@ -801,13 +822,13 @@ export async function getPayments(filters?: {
         chit_group_id: r.chit_group_id,
         installment_id: r.installment_id,
         amount: Number(r.amount),
-        payment_date: String(r.payment_date).slice(0, 10),
+        payment_date: toDateString(r.payment_date),
         payment_method: r.payment_method,
         reference_number: r.reference_number || '',
         status: r.status,
         notes: r.notes || '',
-        created_at: r.created_at,
-        updated_at: r.updated_at,
+        created_at: toIsoString(r.created_at),
+        updated_at: toIsoString(r.updated_at),
         member_name: r.member_name,
         member_number: Number(r.member_number),
         month_name: r.month_name,
@@ -878,13 +899,13 @@ export async function createPayment(data: Omit<Payment, 'id' | 'created_at' | 'u
       chit_group_id: r.chit_group_id,
       installment_id: r.installment_id,
       amount: Number(r.amount),
-      payment_date: String(r.payment_date).slice(0, 10),
+      payment_date: toDateString(r.payment_date),
       payment_method: r.payment_method,
       reference_number: r.reference_number || '',
       status: r.status,
       notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
+      created_at: toIsoString(r.created_at),
+      updated_at: toIsoString(r.updated_at),
     };
   }
 
@@ -938,12 +959,12 @@ export async function updatePayment(id: string, data: Partial<Payment>): Promise
       chit_group_id: current.chit_group_id,
       installment_id: updated.installment_id,
       amount: updated.amount,
-      payment_date: String(updated.payment_date).slice(0, 10),
+      payment_date: toDateString(updated.payment_date),
       payment_method: updated.payment_method,
       reference_number: updated.reference_number || '',
       status: updated.status,
       notes: updated.notes || '',
-      created_at: current.created_at,
+      created_at: toIsoString(current.created_at),
       updated_at: new Date().toISOString(),
     };
   }
@@ -996,15 +1017,15 @@ export async function getAuctions(): Promise<Auction[]> {
         id: r.id,
         chit_group_id: r.chit_group_id,
         installment_id: r.installment_id,
-        auction_date: String(r.auction_date).slice(0, 10),
+        auction_date: toDateString(r.auction_date),
         chit_value: Number(r.chit_value),
         winning_bid: Number(r.winning_bid),
         discount: Number(r.discount),
         dividend_per_member: Number(r.dividend_per_member),
         winner_member_id: r.winner_member_id,
         notes: r.notes || '',
-        created_at: r.created_at,
-        updated_at: r.updated_at,
+        created_at: toIsoString(r.created_at),
+        updated_at: toIsoString(r.updated_at),
         winner_name: r.winner_name,
         winner_number: r.winner_number ? Number(r.winner_number) : undefined,
         month_name: r.month_name,
@@ -1061,15 +1082,15 @@ export async function createOrUpdateAuction(
       id: r.id,
       chit_group_id: r.chit_group_id,
       installment_id: r.installment_id,
-      auction_date: String(r.auction_date).slice(0, 10),
+      auction_date: toDateString(r.auction_date),
       chit_value: Number(r.chit_value),
       winning_bid: Number(r.winning_bid),
       discount: Number(r.discount),
       dividend_per_member: Number(r.dividend_per_member),
       winner_member_id: r.winner_member_id,
       notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
+      created_at: toIsoString(r.created_at),
+      updated_at: toIsoString(r.updated_at),
     };
   }
 
@@ -1123,7 +1144,7 @@ export async function getUserByUsername(username: string): Promise<User | null> 
           username: r.username,
           password_hash: r.password_hash,
           role: r.role,
-          created_at: r.created_at,
+          created_at: toIsoString(r.created_at),
         };
       }
       return null;
@@ -1150,7 +1171,7 @@ export async function getUserById(id: string): Promise<User | null> {
           username: r.username,
           password_hash: r.password_hash,
           role: r.role,
-          created_at: r.created_at,
+          created_at: toIsoString(r.created_at),
         };
       }
       return null;
@@ -1175,7 +1196,7 @@ export async function getAllUsers(): Promise<User[]> {
         username: r.username,
         password_hash: '',
         role: r.role,
-        created_at: r.created_at,
+        created_at: toIsoString(r.created_at),
       }));
     } catch (err) {
       console.error('getAllUsers SQL error, falling back to localStore:', err);
@@ -1212,7 +1233,7 @@ export async function createUser(data: {
       username: r.username,
       password_hash: r.password_hash,
       role: r.role,
-      created_at: r.created_at,
+      created_at: toIsoString(r.created_at),
     };
   }
 
@@ -1258,7 +1279,7 @@ export async function updateUser(
       username: r.username,
       password_hash: r.password_hash,
       role: r.role,
-      created_at: r.created_at,
+      created_at: toIsoString(r.created_at),
     };
   }
 
@@ -1588,7 +1609,12 @@ export async function getDbHealth(): Promise<{
         connected: false,
         isNeon: true,
         latencyMs: Date.now() - start,
-        tableCounts: {},
+        tableCounts: {
+          chit_groups: 0,
+          members: 0,
+          payments: 0,
+          auctions: 0,
+        },
       };
     }
   }
