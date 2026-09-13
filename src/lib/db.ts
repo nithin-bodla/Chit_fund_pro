@@ -21,10 +21,21 @@ import {
 } from './seed';
 import { calculateBalance, getPaymentStatus, toPaise, fromPaise } from './currency';
 
+export function getDbUrl(): string | undefined {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.NEON_DATABASE_URL ||
+    process.env.DATABASE_URL_UNPOOLED
+  );
+}
+
 let sqlClient: NeonQueryFunction<false, false> | null = null;
 
 export function getSqlClient(): NeonQueryFunction<false, false> | null {
-  const dbUrl = process.env.DATABASE_URL;
+  const dbUrl = getDbUrl();
   if (!dbUrl) return null;
   if (!sqlClient) {
     sqlClient = neon(dbUrl);
@@ -33,7 +44,8 @@ export function getSqlClient(): NeonQueryFunction<false, false> | null {
 }
 
 export function isNeonConfigured(): boolean {
-  return Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim().length > 0);
+  const dbUrl = getDbUrl();
+  return Boolean(dbUrl && dbUrl.trim().length > 0);
 }
 
 // -------------------------------------------------------------
