@@ -156,6 +156,8 @@ if (process.env.NODE_ENV !== 'production') {
 // -------------------------------------------------------------
 // Database Initialization & Schema Migration (Neon)
 // -------------------------------------------------------------
+let dbInitPromise: Promise<void> | null = null;
+
 export async function ensureDatabaseInitialized(): Promise<void> {
   const sql = getSqlClient();
   if (!sql) {
@@ -163,110 +165,117 @@ export async function ensureDatabaseInitialized(): Promise<void> {
     return;
   }
 
-  // Neon DB schema initialization
-  try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS chit_groups (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name VARCHAR(255) NOT NULL,
-        total_members INTEGER NOT NULL DEFAULT 10,
-        monthly_base_amount NUMERIC(12, 2) NOT NULL DEFAULT 50000.00,
-        regular_member_monthly_amount NUMERIC(12, 2) NOT NULL DEFAULT 5000.00,
-        after_lift_monthly_amount NUMERIC(12, 2) NOT NULL DEFAULT 6000.00,
-        start_date DATE NOT NULL,
-        end_date DATE NOT NULL,
-        status VARCHAR(50) NOT NULL DEFAULT 'active',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-    `;
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      try {
+        await sql`
+          CREATE TABLE IF NOT EXISTS chit_groups (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name VARCHAR(255) NOT NULL,
+            total_members INTEGER NOT NULL DEFAULT 10,
+            monthly_base_amount NUMERIC(12, 2) NOT NULL DEFAULT 50000.00,
+            regular_member_monthly_amount NUMERIC(12, 2) NOT NULL DEFAULT 5000.00,
+            after_lift_monthly_amount NUMERIC(12, 2) NOT NULL DEFAULT 6000.00,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT 'active',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `;
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS members (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
-        member_number INTEGER NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        phone VARCHAR(50),
-        email VARCHAR(255),
-        address TEXT,
-        status VARCHAR(50) NOT NULL DEFAULT 'active',
-        joined_date DATE DEFAULT CURRENT_DATE,
-        notes TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        CONSTRAINT unique_group_member_num UNIQUE(chit_group_id, member_number)
-      );
-    `;
+        await sql`
+          CREATE TABLE IF NOT EXISTS members (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
+            member_number INTEGER NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            phone VARCHAR(50),
+            email VARCHAR(255),
+            address TEXT,
+            status VARCHAR(50) NOT NULL DEFAULT 'active',
+            joined_date DATE DEFAULT CURRENT_DATE,
+            notes TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            CONSTRAINT unique_group_member_num UNIQUE(chit_group_id, member_number)
+          );
+        `;
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS monthly_installments (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
-        month_number INTEGER NOT NULL,
-        month_name VARCHAR(100) NOT NULL,
-        due_date DATE NOT NULL,
-        expected_amount NUMERIC(12, 2) NOT NULL,
-        notes TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        CONSTRAINT unique_group_month_num UNIQUE(chit_group_id, month_number)
-      );
-    `;
+        await sql`
+          CREATE TABLE IF NOT EXISTS monthly_installments (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
+            month_number INTEGER NOT NULL,
+            month_name VARCHAR(100) NOT NULL,
+            due_date DATE NOT NULL,
+            expected_amount NUMERIC(12, 2) NOT NULL,
+            notes TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            CONSTRAINT unique_group_month_num UNIQUE(chit_group_id, month_number)
+          );
+        `;
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS payments (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
-        chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
-        installment_id UUID NOT NULL REFERENCES monthly_installments(id) ON DELETE CASCADE,
-        amount NUMERIC(12, 2) NOT NULL,
-        payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
-        payment_method VARCHAR(50) NOT NULL DEFAULT 'Cash',
-        reference_number VARCHAR(100),
-        status VARCHAR(50) NOT NULL DEFAULT 'Completed',
-        notes TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-    `;
+        await sql`
+          CREATE TABLE IF NOT EXISTS payments (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+            chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
+            installment_id UUID NOT NULL REFERENCES monthly_installments(id) ON DELETE CASCADE,
+            amount NUMERIC(12, 2) NOT NULL,
+            payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+            payment_method VARCHAR(50) NOT NULL DEFAULT 'Cash',
+            reference_number VARCHAR(100),
+            status VARCHAR(50) NOT NULL DEFAULT 'Completed',
+            notes TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `;
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS auctions (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
-        installment_id UUID NOT NULL REFERENCES monthly_installments(id) ON DELETE CASCADE,
-        auction_date DATE NOT NULL DEFAULT CURRENT_DATE,
-        chit_value NUMERIC(12, 2) NOT NULL,
-        winning_bid NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-        discount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-        dividend_per_member NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-        winner_member_id UUID REFERENCES members(id) ON DELETE SET NULL,
-        notes TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        CONSTRAINT unique_group_installment_auction UNIQUE(chit_group_id, installment_id)
-      );
-    `;
+        await sql`
+          CREATE TABLE IF NOT EXISTS auctions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            chit_group_id UUID NOT NULL REFERENCES chit_groups(id) ON DELETE CASCADE,
+            installment_id UUID NOT NULL REFERENCES monthly_installments(id) ON DELETE CASCADE,
+            auction_date DATE NOT NULL DEFAULT CURRENT_DATE,
+            chit_value NUMERIC(12, 2) NOT NULL,
+            winning_bid NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            discount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            dividend_per_member NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            winner_member_id UUID REFERENCES members(id) ON DELETE SET NULL,
+            notes TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            CONSTRAINT unique_group_installment_auction UNIQUE(chit_group_id, installment_id)
+          );
+        `;
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        username VARCHAR(100) NOT NULL UNIQUE,
-        password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) NOT NULL DEFAULT 'admin',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-    `;
+        await sql`
+          CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            username VARCHAR(100) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL DEFAULT 'admin',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `;
 
-    // Check if chit_groups has any record, if not seed it automatically
-    const existingGroups = await sql`SELECT id FROM chit_groups LIMIT 1`;
-    if (existingGroups.length === 0) {
-      await seedNeonDatabase();
-    }
-  } catch (err) {
-    console.error('Neon DB schema check/init error:', err);
+        // Check if chit_groups has any record, if not seed it automatically
+        const existingGroups = await sql`SELECT id FROM chit_groups LIMIT 1;`;
+        if (existingGroups.length === 0) {
+          await seedNeonDatabase();
+        }
+      } catch (err) {
+        console.error('Neon DB schema check/init error:', err);
+        // Reset promise to allow retrying on next request
+        dbInitPromise = null;
+      }
+    })();
   }
+
+  await dbInitPromise;
 }
 
 export async function seedNeonDatabase(): Promise<void> {
@@ -277,46 +286,54 @@ export async function seedNeonDatabase(): Promise<void> {
     return;
   }
 
-  // 1. Insert chit group
-  const groupRows = await sql`
-    INSERT INTO chit_groups (
-      name, total_members, monthly_base_amount, regular_member_monthly_amount,
-      after_lift_monthly_amount, start_date, end_date, status
-    ) VALUES (
-      ${INITIAL_CHIT_GROUP.name},
-      ${INITIAL_CHIT_GROUP.total_members},
-      ${INITIAL_CHIT_GROUP.monthly_base_amount},
-      ${INITIAL_CHIT_GROUP.regular_member_monthly_amount},
-      ${INITIAL_CHIT_GROUP.after_lift_monthly_amount},
-      ${INITIAL_CHIT_GROUP.start_date},
-      ${INITIAL_CHIT_GROUP.end_date},
-      ${INITIAL_CHIT_GROUP.status}
-    ) RETURNING id;
-  `;
-  const groupId = groupRows[0].id;
+  try {
+    // 1. Insert chit group safely if not exists
+    const existing = await sql`SELECT id FROM chit_groups LIMIT 1;`;
+    let groupId: string;
+    if (existing.length > 0) {
+      groupId = existing[0].id;
+    } else {
+      const groupRows = await sql`
+        INSERT INTO chit_groups (
+          name, total_members, monthly_base_amount, regular_member_monthly_amount,
+          after_lift_monthly_amount, start_date, end_date, status
+        ) VALUES (
+          ${INITIAL_CHIT_GROUP.name},
+          ${INITIAL_CHIT_GROUP.total_members},
+          ${INITIAL_CHIT_GROUP.monthly_base_amount},
+          ${INITIAL_CHIT_GROUP.regular_member_monthly_amount},
+          ${INITIAL_CHIT_GROUP.after_lift_monthly_amount},
+          ${INITIAL_CHIT_GROUP.start_date},
+          ${INITIAL_CHIT_GROUP.end_date},
+          ${INITIAL_CHIT_GROUP.status}
+        ) RETURNING id;
+      `;
+      groupId = groupRows[0].id;
+    }
 
-  // 2. Insert installments
-  const installmentMap: Record<number, string> = {};
-  for (const inst of INITIAL_INSTALLMENTS) {
-    const instRows = await sql`
-      INSERT INTO monthly_installments (
-        chit_group_id, month_number, month_name, due_date, expected_amount, notes
-      ) VALUES (
-        ${groupId}, ${inst.month_number}, ${inst.month_name}, ${inst.due_date}, ${inst.expected_amount}, ${inst.notes}
-      ) RETURNING id, month_number;
+    // 2. Insert installments safely with ON CONFLICT
+    for (const inst of INITIAL_INSTALLMENTS) {
+      await sql`
+        INSERT INTO monthly_installments (
+          chit_group_id, month_number, month_name, due_date, expected_amount, notes
+        ) VALUES (
+          ${groupId}, ${inst.month_number}, ${inst.month_name}, ${inst.due_date}, ${inst.expected_amount}, ${inst.notes}
+        )
+        ON CONFLICT (chit_group_id, month_number) DO NOTHING;
+      `;
+    }
+
+    // 3. Insert admin user safely with ON CONFLICT
+    const adminUsername = getInitialAdminUsername();
+    const adminHash = await getInitialAdminHash();
+    await sql`
+      INSERT INTO users (username, password_hash, role)
+      VALUES (${adminUsername}, ${adminHash}, 'admin')
+      ON CONFLICT (username) DO NOTHING;
     `;
-    installmentMap[inst.month_number] = instRows[0].id;
+  } catch (err) {
+    console.error('seedNeonDatabase error:', err);
   }
-
-  // 3. Insert members
-  // 3. Insert admin user
-  const adminUsername = getInitialAdminUsername();
-  const adminHash = await getInitialAdminHash();
-  await sql`
-    INSERT INTO users (username, password_hash, role)
-    VALUES (${adminUsername}, ${adminHash}, 'admin')
-    ON CONFLICT (username) DO NOTHING;
-  `;
 }
 
 // -------------------------------------------------------------
@@ -329,11 +346,16 @@ export async function clearAllBusinessData(): Promise<void> {
     return;
   }
 
-  await sql`DELETE FROM payments;`;
-  await sql`DELETE FROM auctions;`;
-  await sql`DELETE FROM members;`;
-  const adminUsername = getInitialAdminUsername();
-  await sql`DELETE FROM users WHERE username != ${adminUsername};`;
+  try {
+    await sql`DELETE FROM payments;`;
+    await sql`DELETE FROM auctions;`;
+    await sql`DELETE FROM members;`;
+    const adminUsername = getInitialAdminUsername();
+    await sql`DELETE FROM users WHERE username != ${adminUsername};`;
+  } catch (err) {
+    console.error('clearAllBusinessData error:', err);
+    localStore.clearAllData();
+  }
 }
 
 // -------------------------------------------------------------
@@ -345,22 +367,26 @@ export async function getChitGroup(): Promise<ChitGroup> {
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`SELECT * FROM chit_groups ORDER BY created_at ASC LIMIT 1;`;
-    if (rows.length > 0) {
-      const r = rows[0];
-      return {
-        id: r.id,
-        name: r.name,
-        total_members: Number(r.total_members),
-        monthly_base_amount: Number(r.monthly_base_amount),
-        regular_member_monthly_amount: Number(r.regular_member_monthly_amount || 5000),
-        after_lift_monthly_amount: Number(r.after_lift_monthly_amount || 6000),
-        start_date: String(r.start_date).slice(0, 10),
-        end_date: String(r.end_date).slice(0, 10),
-        status: r.status,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-      };
+    try {
+      const rows = await sql`SELECT * FROM chit_groups ORDER BY created_at ASC LIMIT 1;`;
+      if (rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.id,
+          name: r.name,
+          total_members: Number(r.total_members),
+          monthly_base_amount: Number(r.monthly_base_amount),
+          regular_member_monthly_amount: Number(r.regular_member_monthly_amount || 5000),
+          after_lift_monthly_amount: Number(r.after_lift_monthly_amount || 6000),
+          start_date: String(r.start_date).slice(0, 10),
+          end_date: String(r.end_date).slice(0, 10),
+          status: r.status,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        };
+      }
+    } catch (err) {
+      console.error('getChitGroup SQL error, falling back to localStore:', err);
     }
   }
 
@@ -403,21 +429,25 @@ export async function getMembers(): Promise<Member[]> {
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`SELECT * FROM members ORDER BY member_number ASC;`;
-    return rows.map((r) => ({
-      id: r.id,
-      chit_group_id: r.chit_group_id,
-      member_number: Number(r.member_number),
-      name: r.name,
-      phone: r.phone || '',
-      email: r.email || '',
-      address: r.address || '',
-      status: r.status,
-      joined_date: String(r.joined_date).slice(0, 10),
-      notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    }));
+    try {
+      const rows = await sql`SELECT * FROM members ORDER BY member_number ASC;`;
+      return rows.map((r) => ({
+        id: r.id,
+        chit_group_id: r.chit_group_id,
+        member_number: Number(r.member_number),
+        name: r.name,
+        phone: r.phone || '',
+        email: r.email || '',
+        address: r.address || '',
+        status: r.status,
+        joined_date: String(r.joined_date).slice(0, 10),
+        notes: r.notes || '',
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      }));
+    } catch (err) {
+      console.error('getMembers SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -429,23 +459,29 @@ export async function getMemberById(id: string): Promise<Member | null> {
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`SELECT * FROM members WHERE id = ${id} LIMIT 1;`;
-    if (rows.length === 0) return null;
-    const r = rows[0];
-    return {
-      id: r.id,
-      chit_group_id: r.chit_group_id,
-      member_number: Number(r.member_number),
-      name: r.name,
-      phone: r.phone || '',
-      email: r.email || '',
-      address: r.address || '',
-      status: r.status,
-      joined_date: String(r.joined_date).slice(0, 10),
-      notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    };
+    try {
+      const rows = await sql`SELECT * FROM members WHERE id = ${id} LIMIT 1;`;
+      if (rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.id,
+          chit_group_id: r.chit_group_id,
+          member_number: Number(r.member_number),
+          name: r.name,
+          phone: r.phone || '',
+          email: r.email || '',
+          address: r.address || '',
+          status: r.status,
+          joined_date: String(r.joined_date).slice(0, 10),
+          notes: r.notes || '',
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('getMemberById SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -458,29 +494,33 @@ export async function createMember(data: Omit<Member, 'id' | 'created_at' | 'upd
   const now = new Date().toISOString();
 
   if (sql) {
-    const rows = await sql`
-      INSERT INTO members (
-        chit_group_id, member_number, name, phone, email, address, status, joined_date, notes
-      ) VALUES (
-        ${data.chit_group_id}, ${data.member_number}, ${data.name}, ${data.phone},
-        ${data.email}, ${data.address}, ${data.status}, ${data.joined_date}, ${data.notes}
-      ) RETURNING *;
-    `;
-    const r = rows[0];
-    return {
-      id: r.id,
-      chit_group_id: r.chit_group_id,
-      member_number: Number(r.member_number),
-      name: r.name,
-      phone: r.phone || '',
-      email: r.email || '',
-      address: r.address || '',
-      status: r.status,
-      joined_date: String(r.joined_date).slice(0, 10),
-      notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    };
+    try {
+      const rows = await sql`
+        INSERT INTO members (
+          chit_group_id, member_number, name, phone, email, address, status, joined_date, notes
+        ) VALUES (
+          ${data.chit_group_id}, ${data.member_number}, ${data.name}, ${data.phone},
+          ${data.email}, ${data.address}, ${data.status}, ${data.joined_date}, ${data.notes}
+        ) RETURNING *;
+      `;
+      const r = rows[0];
+      return {
+        id: r.id,
+        chit_group_id: r.chit_group_id,
+        member_number: Number(r.member_number),
+        name: r.name,
+        phone: r.phone || '',
+        email: r.email || '',
+        address: r.address || '',
+        status: r.status,
+        joined_date: String(r.joined_date).slice(0, 10),
+        notes: r.notes || '',
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      };
+    } catch (err) {
+      console.error('createMember SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -499,24 +539,28 @@ export async function updateMember(id: string, data: Partial<Member>): Promise<M
   const sql = getSqlClient();
 
   if (sql) {
-    const current = await getMemberById(id);
-    if (!current) return null;
-    const updated = { ...current, ...data };
-    await sql`
-      UPDATE members
-      SET
-        member_number = ${updated.member_number},
-        name = ${updated.name},
-        phone = ${updated.phone},
-        email = ${updated.email},
-        address = ${updated.address},
-        status = ${updated.status},
-        joined_date = ${updated.joined_date},
-        notes = ${updated.notes},
-        updated_at = NOW()
-      WHERE id = ${id};
-    `;
-    return updated;
+    try {
+      const current = await getMemberById(id);
+      if (!current) return null;
+      const updated = { ...current, ...data };
+      await sql`
+        UPDATE members
+        SET
+          member_number = ${updated.member_number},
+          name = ${updated.name},
+          phone = ${updated.phone},
+          email = ${updated.email},
+          address = ${updated.address},
+          status = ${updated.status},
+          joined_date = ${updated.joined_date},
+          notes = ${updated.notes},
+          updated_at = NOW()
+        WHERE id = ${id};
+      `;
+      return updated;
+    } catch (err) {
+      console.error('updateMember SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -531,8 +575,12 @@ export async function deleteMember(id: string): Promise<boolean> {
   const sql = getSqlClient();
 
   if (sql) {
-    await sql`DELETE FROM members WHERE id = ${id};`;
-    return true;
+    try {
+      await sql`DELETE FROM members WHERE id = ${id};`;
+      return true;
+    } catch (err) {
+      console.error('deleteMember SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -547,18 +595,22 @@ export async function getInstallments(): Promise<MonthlyInstallment[]> {
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`SELECT * FROM monthly_installments ORDER BY month_number ASC;`;
-    return rows.map((r) => ({
-      id: r.id,
-      chit_group_id: r.chit_group_id,
-      month_number: Number(r.month_number),
-      month_name: r.month_name,
-      due_date: String(r.due_date).slice(0, 10),
-      expected_amount: Number(r.expected_amount),
-      notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-    }));
+    try {
+      const rows = await sql`SELECT * FROM monthly_installments ORDER BY month_number ASC;`;
+      return rows.map((r) => ({
+        id: r.id,
+        chit_group_id: r.chit_group_id,
+        month_number: Number(r.month_number),
+        month_name: r.month_name,
+        due_date: String(r.due_date).slice(0, 10),
+        expected_amount: Number(r.expected_amount),
+        notes: r.notes || '',
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      }));
+    } catch (err) {
+      console.error('getInstallments SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -682,65 +734,69 @@ export async function getPayments(filters?: {
   const sql = getSqlClient();
 
   if (sql) {
-    let query = `
-      SELECT
-        p.*,
-        m.name as member_name,
-        m.member_number,
-        i.month_name,
-        i.month_number
-      FROM payments p
-      JOIN members m ON p.member_id = m.id
-      JOIN monthly_installments i ON p.installment_id = i.id
-      WHERE 1=1
-    `;
-    const params: any[] = [];
-    let pIdx = 1;
+    try {
+      let query = `
+        SELECT
+          p.*,
+          m.name as member_name,
+          m.member_number,
+          i.month_name,
+          i.month_number
+        FROM payments p
+        JOIN members m ON p.member_id = m.id
+        JOIN monthly_installments i ON p.installment_id = i.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+      let pIdx = 1;
 
-    if (filters?.member_id) {
-      query += ` AND p.member_id = $${pIdx++}`;
-      params.push(filters.member_id);
-    }
-    if (filters?.installment_id) {
-      query += ` AND p.installment_id = $${pIdx++}`;
-      params.push(filters.installment_id);
-    }
-    if (filters?.payment_method && filters.payment_method !== 'all') {
-      query += ` AND p.payment_method = $${pIdx++}`;
-      params.push(filters.payment_method);
-    }
-    if (filters?.status && filters.status !== 'all') {
-      query += ` AND p.status = $${pIdx++}`;
-      params.push(filters.status);
-    }
-    if (filters?.search) {
-      query += ` AND (m.name ILIKE $${pIdx} OR p.reference_number ILIKE $${pIdx} OR p.notes ILIKE $${pIdx})`;
-      params.push(`%${filters.search}%`);
-      pIdx++;
-    }
+      if (filters?.member_id) {
+        query += ` AND p.member_id = $${pIdx++}`;
+        params.push(filters.member_id);
+      }
+      if (filters?.installment_id) {
+        query += ` AND p.installment_id = $${pIdx++}`;
+        params.push(filters.installment_id);
+      }
+      if (filters?.payment_method && filters.payment_method !== 'all') {
+        query += ` AND p.payment_method = $${pIdx++}`;
+        params.push(filters.payment_method);
+      }
+      if (filters?.status && filters.status !== 'all') {
+        query += ` AND p.status = $${pIdx++}`;
+        params.push(filters.status);
+      }
+      if (filters?.search) {
+        query += ` AND (m.name ILIKE $${pIdx} OR p.reference_number ILIKE $${pIdx} OR p.notes ILIKE $${pIdx})`;
+        params.push(`%${filters.search}%`);
+        pIdx++;
+      }
 
-    query += ` ORDER BY p.payment_date DESC, p.created_at DESC;`;
+      query += ` ORDER BY p.payment_date DESC, p.created_at DESC;`;
 
-    // Execute with neon parameterized query
-    const rows = await (sql as any)(query, params);
-    return rows.map((r: any) => ({
-      id: r.id,
-      member_id: r.member_id,
-      chit_group_id: r.chit_group_id,
-      installment_id: r.installment_id,
-      amount: Number(r.amount),
-      payment_date: String(r.payment_date).slice(0, 10),
-      payment_method: r.payment_method,
-      reference_number: r.reference_number || '',
-      status: r.status,
-      notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-      member_name: r.member_name,
-      member_number: Number(r.member_number),
-      month_name: r.month_name,
-      month_number: Number(r.month_number),
-    }));
+      // Execute with neon parameterized query via sql.query
+      const rows = await (sql as any).query(query, params);
+      return rows.map((r: any) => ({
+        id: r.id,
+        member_id: r.member_id,
+        chit_group_id: r.chit_group_id,
+        installment_id: r.installment_id,
+        amount: Number(r.amount),
+        payment_date: String(r.payment_date).slice(0, 10),
+        payment_method: r.payment_method,
+        reference_number: r.reference_number || '',
+        status: r.status,
+        notes: r.notes || '',
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        member_name: r.member_name,
+        member_number: Number(r.member_number),
+        month_name: r.month_name,
+        month_number: Number(r.month_number),
+      }));
+    } catch (err) {
+      console.error('getPayments SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -904,36 +960,40 @@ export async function getAuctions(): Promise<Auction[]> {
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`
-      SELECT
-        a.*,
-        m.name as winner_name,
-        m.member_number as winner_number,
-        i.month_name,
-        i.month_number
-      FROM auctions a
-      LEFT JOIN members m ON a.winner_member_id = m.id
-      JOIN monthly_installments i ON a.installment_id = i.id
-      ORDER BY i.month_number ASC;
-    `;
-    return rows.map((r) => ({
-      id: r.id,
-      chit_group_id: r.chit_group_id,
-      installment_id: r.installment_id,
-      auction_date: String(r.auction_date).slice(0, 10),
-      chit_value: Number(r.chit_value),
-      winning_bid: Number(r.winning_bid),
-      discount: Number(r.discount),
-      dividend_per_member: Number(r.dividend_per_member),
-      winner_member_id: r.winner_member_id,
-      notes: r.notes || '',
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-      winner_name: r.winner_name,
-      winner_number: r.winner_number ? Number(r.winner_number) : undefined,
-      month_name: r.month_name,
-      month_number: Number(r.month_number),
-    }));
+    try {
+      const rows = await sql`
+        SELECT
+          a.*,
+          m.name as winner_name,
+          m.member_number as winner_number,
+          i.month_name,
+          i.month_number
+        FROM auctions a
+        LEFT JOIN members m ON a.winner_member_id = m.id
+        JOIN monthly_installments i ON a.installment_id = i.id
+        ORDER BY i.month_number ASC;
+      `;
+      return rows.map((r) => ({
+        id: r.id,
+        chit_group_id: r.chit_group_id,
+        installment_id: r.installment_id,
+        auction_date: String(r.auction_date).slice(0, 10),
+        chit_value: Number(r.chit_value),
+        winning_bid: Number(r.winning_bid),
+        discount: Number(r.discount),
+        dividend_per_member: Number(r.dividend_per_member),
+        winner_member_id: r.winner_member_id,
+        notes: r.notes || '',
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        winner_name: r.winner_name,
+        winner_number: r.winner_number ? Number(r.winner_number) : undefined,
+        month_name: r.month_name,
+        month_number: Number(r.month_number),
+      }));
+    } catch (err) {
+      console.error('getAuctions SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -1035,16 +1095,22 @@ export async function getUserByUsername(username: string): Promise<User | null> 
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`SELECT * FROM users WHERE username = ${username} LIMIT 1;`;
-    if (rows.length === 0) return null;
-    const r = rows[0];
-    return {
-      id: r.id,
-      username: r.username,
-      password_hash: r.password_hash,
-      role: r.role,
-      created_at: r.created_at,
-    };
+    try {
+      const rows = await sql`SELECT * FROM users WHERE username = ${username} LIMIT 1;`;
+      if (rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.id,
+          username: r.username,
+          password_hash: r.password_hash,
+          role: r.role,
+          created_at: r.created_at,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('getUserByUsername SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -1056,16 +1122,22 @@ export async function getUserById(id: string): Promise<User | null> {
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`SELECT * FROM users WHERE id = ${id} LIMIT 1;`;
-    if (rows.length === 0) return null;
-    const r = rows[0];
-    return {
-      id: r.id,
-      username: r.username,
-      password_hash: r.password_hash,
-      role: r.role,
-      created_at: r.created_at,
-    };
+    try {
+      const rows = await sql`SELECT * FROM users WHERE id = ${id} LIMIT 1;`;
+      if (rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.id,
+          username: r.username,
+          password_hash: r.password_hash,
+          role: r.role,
+          created_at: r.created_at,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('getUserById SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
@@ -1077,14 +1149,18 @@ export async function getAllUsers(): Promise<User[]> {
   const sql = getSqlClient();
 
   if (sql) {
-    const rows = await sql`SELECT id, username, role, created_at FROM users ORDER BY created_at ASC;`;
-    return rows.map((r) => ({
-      id: r.id,
-      username: r.username,
-      password_hash: '',
-      role: r.role,
-      created_at: r.created_at,
-    }));
+    try {
+      const rows = await sql`SELECT id, username, role, created_at FROM users ORDER BY created_at ASC;`;
+      return rows.map((r) => ({
+        id: r.id,
+        username: r.username,
+        password_hash: '',
+        role: r.role,
+        created_at: r.created_at,
+      }));
+    } catch (err) {
+      console.error('getAllUsers SQL error, falling back to localStore:', err);
+    }
   }
 
   await localStore.init();
