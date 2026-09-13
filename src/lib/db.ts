@@ -22,14 +22,44 @@ import {
 import { calculateBalance, getPaymentStatus, toPaise, fromPaise } from './currency';
 
 export function getDbUrl(): string | undefined {
-  return (
+  // 1. Direct environment variable lookups (including custom Vercel store prefixes like Chit_DB_)
+  const direct =
     process.env.DATABASE_URL ||
+    process.env.Chit_DB_DATABASE_URL ||
+    process.env.CHIT_DB_DATABASE_URL ||
     process.env.POSTGRES_URL ||
+    process.env.Chit_DB_POSTGRES_URL ||
+    process.env.CHIT_DB_POSTGRES_URL ||
     process.env.POSTGRES_PRISMA_URL ||
     process.env.POSTGRES_URL_NON_POOLING ||
     process.env.NEON_DATABASE_URL ||
-    process.env.DATABASE_URL_UNPOOLED
-  );
+    process.env.DATABASE_URL_UNPOOLED;
+
+  if (direct && direct.trim().length > 0) return direct.trim();
+
+  // 2. Dynamic scan for any prefixed DATABASE_URL or POSTGRES_URL
+  for (const [key, val] of Object.entries(process.env)) {
+    if (!val || typeof val !== 'string') continue;
+    const upper = key.toUpperCase();
+    if (
+      (upper.endsWith('_DATABASE_URL') ||
+        upper.endsWith('_POSTGRES_URL') ||
+        upper.includes('DATABASE_URL') ||
+        upper.includes('POSTGRES_URL')) &&
+      (val.startsWith('postgres://') || val.startsWith('postgresql://'))
+    ) {
+      return val.trim();
+    }
+  }
+
+  // 3. Fallback: Any environment variable with a postgres connection string
+  for (const [, val] of Object.entries(process.env)) {
+    if (typeof val === 'string' && (val.startsWith('postgres://') || val.startsWith('postgresql://'))) {
+      return val.trim();
+    }
+  }
+
+  return undefined;
 }
 
 let sqlClient: NeonQueryFunction<false, false> | null = null;
