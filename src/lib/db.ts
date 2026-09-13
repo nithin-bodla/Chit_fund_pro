@@ -21,21 +21,39 @@ import {
 } from './seed';
 import { calculateBalance, getPaymentStatus, toPaise, fromPaise } from './currency';
 
-export function getDbUrl(): string | undefined {
-  // 1. Direct environment variable lookups (including custom Vercel store prefixes like Chit_DB_)
-  const direct =
-    process.env.DATABASE_URL ||
-    process.env.Chit_DB_DATABASE_URL ||
-    process.env.CHIT_DB_DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.Chit_DB_POSTGRES_URL ||
-    process.env.CHIT_DB_POSTGRES_URL ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.NEON_DATABASE_URL ||
-    process.env.DATABASE_URL_UNPOOLED;
+function isValidPostgresUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('postgres://') && !trimmed.startsWith('postgresql://')) return false;
+  if (
+    trimmed.includes('ep-cool-cloud-123456') ||
+    trimmed.includes('username:password') ||
+    trimmed.includes('[password]') ||
+    trimmed.includes('[neon_hostname]')
+  ) {
+    return false; // ignore template placeholders
+  }
+  return true;
+}
 
-  if (direct && direct.trim().length > 0) return direct.trim();
+export function getDbUrl(): string | undefined {
+  // 1. Direct environment variable lookups (prioritize Chit_DB_ from active Neon store)
+  const candidates = [
+    process.env.Chit_DB_DATABASE_URL,
+    process.env.Chit_DB_POSTGRES_URL,
+    process.env.CHIT_DB_DATABASE_URL,
+    process.env.CHIT_DB_POSTGRES_URL,
+    process.env.DATABASE_URL,
+    process.env.POSTGRES_URL,
+    process.env.POSTGRES_PRISMA_URL,
+    process.env.POSTGRES_URL_NON_POOLING,
+    process.env.NEON_DATABASE_URL,
+    process.env.DATABASE_URL_UNPOOLED,
+  ];
+
+  for (const c of candidates) {
+    if (isValidPostgresUrl(c)) return c!.trim();
+  }
 
   // 2. Dynamic scan for any prefixed DATABASE_URL or POSTGRES_URL
   for (const [key, val] of Object.entries(process.env)) {
@@ -46,7 +64,8 @@ export function getDbUrl(): string | undefined {
         upper.endsWith('_POSTGRES_URL') ||
         upper.includes('DATABASE_URL') ||
         upper.includes('POSTGRES_URL')) &&
-      (val.startsWith('postgres://') || val.startsWith('postgresql://'))
+      val &&
+      isValidPostgresUrl(val)
     ) {
       return val.trim();
     }
@@ -54,7 +73,7 @@ export function getDbUrl(): string | undefined {
 
   // 3. Fallback: Any environment variable with a postgres connection string
   for (const [, val] of Object.entries(process.env)) {
-    if (typeof val === 'string' && (val.startsWith('postgres://') || val.startsWith('postgresql://'))) {
+    if (val && isValidPostgresUrl(val)) {
       return val.trim();
     }
   }

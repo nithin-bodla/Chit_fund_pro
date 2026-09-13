@@ -3,13 +3,19 @@ import { getAdminUsersAction } from '@/actions/auth-actions';
 import { getSession } from '@/lib/auth';
 import { SettingsView } from '@/components/settings/settings-view';
 
+import { redirect } from 'next/navigation';
+
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const [{ group, installments, dbHealth }, usersRes, session] = await Promise.all([
+  const session = await getSession();
+  if (!session || session.role !== 'admin') {
+    redirect('/admin');
+  }
+
+  const [{ group, installments, dbHealth }, usersRes] = await Promise.all([
     getChitSettingsAction(),
     getAdminUsersAction(),
-    getSession(),
   ]);
 
   return (
@@ -18,8 +24,8 @@ export default async function SettingsPage() {
       installments={installments}
       dbHealth={dbHealth}
       users={usersRes.data || []}
-      currentUsername={session?.username || 'admin'}
-      currentUserId={session?.id}
+      currentUsername={session.username}
+      currentUserId={session.id}
     />
   );
 }
