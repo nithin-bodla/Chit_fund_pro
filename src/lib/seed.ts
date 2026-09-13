@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { ChitGroup, Member, MonthlyInstallment, Payment, Auction, User } from './types';
 
 export const INITIAL_CHIT_GROUP: Omit<ChitGroup, 'id' | 'created_at' | 'updated_at'> = {
-  name: 'Sri Lakshmi Chit Fund',
+  name: process.env.CHIT_FUND_NAME || 'Sri Lakshmi Chit Fund',
   total_members: 10,
   monthly_base_amount: 50000,
   regular_member_monthly_amount: 5000,
