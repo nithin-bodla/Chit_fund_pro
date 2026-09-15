@@ -18,18 +18,14 @@ import { calculateBalance, getPaymentStatus } from '@/lib/currency';
 import { revalidatePath } from 'next/cache';
 
 export async function getMembersListAction() {
-  await requireAdmin();
   return await getMembers();
 }
 
 export async function getMemberOverviewAction() {
-  await requireAdmin();
   return await getMemberOverviewList();
 }
 
 export async function getMemberDetailsAction(memberId: string) {
-  await requireAdmin();
-
   const [member, group, installments, allPayments, auctions] = await Promise.all([
     getMemberById(memberId),
     getChitGroup(),
