@@ -6,7 +6,7 @@ const AUTH_COOKIE_NAME = 'chit_session';
 const JWT_SECRET_STRING = process.env.AUTH_SECRET || 'chit-fund-super-secret-key-32-chars-long-at-least';
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow static assets, next internals, api routes if needed
